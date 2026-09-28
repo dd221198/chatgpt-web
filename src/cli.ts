@@ -30,6 +30,7 @@ import { installRuntimeKeyBytes, managedRuntimeKeyPath, stopTunnel, tunnelStatus
 import { getTunnelServiceStatus, restartTunnelService, startTunnelService, stopTunnelService, uninstallTunnelService } from "./tunnel-service";
 import { VERSION } from "./version";
 import { runDevCommand } from "./dev-chat/cli";
+import { ASK_EFFORTS, askWeb, isAskEffort, runAskMcpServer } from "./ask";
 
 const HELP = `codex-chatgpt-web ${VERSION}
 
@@ -49,6 +50,8 @@ Usage:
   codex-chatgpt-web dev chat NAME [--model MODEL] [MESSAGE]
   codex-chatgpt-web dev list
   codex-chatgpt-web serve
+  codex-chatgpt-web ask [--effort instant|medium|high|xhigh|pro] QUESTION
+  codex-chatgpt-web ask-mcp
   codex-chatgpt-web mcp [--broker-socket PATH]
   codex-chatgpt-web service <status|install|start|restart|stop|cancel-turns>
   codex-chatgpt-web tunnel <status|start|restart|stop|key-import>
@@ -607,6 +610,16 @@ async function main(): Promise<void> {
     stdout.write(`codex-chatgpt-web ${VERSION} listening on http://${config.host}:${server.port}/v1 (${config.mode})\n`);
     await new Promise<void>(() => {});
   } else if (command === "dev") await runDevCommand(args);
+  else if (command === "ask") {
+    const effort = takeOption(args, "--effort");
+    if (effort !== undefined && !isAskEffort(effort)) throw new Error(`--effort must be one of: ${ASK_EFFORTS.join(", ")}`);
+    const question = args.join(" ").trim();
+    if (!question) throw new Error("ask requires a question");
+    stdout.write(`${await askWeb(question, effort ? { effort } : {})}\n`);
+  } else if (command === "ask-mcp") {
+    assertNoArgs(args);
+    await runAskMcpServer();
+  }
   else if (command === "mcp") await runChatGptMcpMain(args);
   else if (command === "service") await serviceCommand(args);
   else if (command === "hook") {
